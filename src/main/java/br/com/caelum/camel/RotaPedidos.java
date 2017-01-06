@@ -3,6 +3,7 @@ package br.com.caelum.camel;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.http4.HttpMethods;
 import org.apache.camel.impl.DefaultCamelContext;
 
 public class RotaPedidos {
@@ -18,16 +19,20 @@ public class RotaPedidos {
 				String diretorio = "/home/developer/workspace/camel-alura/pedidos"; // poderia ser apenas "pedidos"
 				
 				from("file:" + diretorio + "?delay=5s&noop=true")
-				.split()
-					.xpath("/pedido/itens/item")
-				.filter()
-					.xpath("/item/formato[text()='EBOOK']")
-				.marshal().xmljson()
-				
-				.setHeader(Exchange.FILE_NAME, simple("${file:name.noext}-${header.CamelSplitIndex}.json"))
-				.log("${id}")
-				.log("${body}")
-				.to("file:saida");
+					.setProperty("pedidoId", xpath("/pedido/id/text()"))
+					.setProperty("clienteId", xpath("/pedido/pagamento/email-titular/text()"))
+					.split()
+						.xpath("/pedido/itens/item")
+					.filter()
+						.xpath("/item/formato[text()='EBOOK']")
+					.setProperty("ebookId", xpath("/item/livro/codigo/text()"))
+					.marshal()
+						.xmljson()
+					.log("${id}")
+					.log("${body}")
+					.setHeader(Exchange.HTTP_METHOD, constant(HttpMethods.GET))
+					.setHeader(Exchange.HTTP_QUERY, simple("clienteId=${exchangeProperty.clienteId}&pedidoId=${exchangeProperty.pedidoId}&ebookId=${exchangeProperty.ebookId}"))
+				.to("http4://localhost:8080/webservices/ebook/item");
 			}
 		});
 		
