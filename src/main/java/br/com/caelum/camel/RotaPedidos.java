@@ -13,10 +13,13 @@ public class RotaPedidos {
 			
 			@Override
 			public void configure() throws Exception {
-				from("file:pedidos").
-				log("${exchange.pattern}").
-				log("${id} - ${body}").
-				to("file:saida");
+				
+				from("file:pedidos?delay=5s&noop=true")
+				.log("${id}")
+				.marshal().xmljson()
+				.log("${body}")
+				.setHeader("CamelFileName", simple("${file:name.noext}.json"))
+				.to("file:saida");
 			}
 		});
 		
