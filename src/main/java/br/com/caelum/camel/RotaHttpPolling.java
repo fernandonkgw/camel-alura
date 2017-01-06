@@ -30,7 +30,7 @@ public class RotaHttpPolling {
 			public void configure() throws Exception {
 				
 				from("timer:negociacoes?fixedRate=true&delay=1s&period=360s")
-					.to("http4://argentumws.caelum.com.br/negociacoes?proxyAuthHost=proxysp.correiosnet.int&proxyAuthPort=80")
+					.to("http4://argentumws.caelum.com.br/negociacoes?proxyAuthHost="+System.getProperty("http.proxyHost")+"&proxyAuthPort=80")
 					.convertBodyTo(String.class)
 					.unmarshal(new XStreamDataFormat(xStream))
 					.split(body())
