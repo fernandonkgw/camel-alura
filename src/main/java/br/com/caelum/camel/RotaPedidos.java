@@ -2,10 +2,11 @@ package br.com.caelum.camel;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
-import org.apache.camel.ProducerTemplate;
+import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.http4.HttpMethods;
 import org.apache.camel.impl.DefaultCamelContext;
+import org.xml.sax.SAXParseException;
 
 public class RotaPedidos {
 
@@ -17,13 +18,45 @@ public class RotaPedidos {
 			@Override
 			public void configure() throws Exception {
 				
+				/*onException(SAXParseException.class)
+					.handled(true)
+					.maximumRedeliveries(3)
+					.redeliveryDelay(3000)
+					.onRedelivery(new Processor() {
+						
+						@Override
+						public void process(Exchange exchange) throws Exception {
+							int counter = (int) exchange.getIn().getHeader(Exchange.REDELIVERY_COUNTER);
+		                    int max = (int) exchange.getIn().getHeader(Exchange.REDELIVERY_MAX_COUNTER);
+		                    System.out.println("Redelivery - " + counter + "/" + max );
+						}
+					});*/
+				
+				errorHandler(deadLetterChannel("file:erro")
+						.logExhaustedMessageHistory(true)
+						.maximumRedeliveries(3)
+						.redeliveryDelay(5000)
+						.onRedelivery(new Processor() {
+							
+							@Override
+							public void process(Exchange exchange) throws Exception {
+							    int counter = (int) exchange.getIn().getHeader(Exchange.REDELIVERY_COUNTER);
+							    int max = (int) exchange.getIn().getHeader(Exchange.REDELIVERY_MAX_COUNTER);
+							    System.out.println("Redelivery - " + counter + "/" + max );
+							}
+						}));
+				
+				
 				String diretorio = "/home/developer/workspace/camel-alura/pedidos"; // poderia ser apenas "pedidos"
 				
 				from("file:" + diretorio + "?delay=5s&noop=true")
+					.log("${file:name}")
 					.routeId("rota-pedidos")
-					.multicast()
-						.to("direct:soap")
-						.to("direct:http");
+					.delay(1000)
+					.to("validator:pedido.xsd");
+//					.multicast()
+//						.to("direct:soap")
+//						.to("direct:http");
 				
 				from("direct:http")
 					.routeId("rota-http")
@@ -53,8 +86,8 @@ public class RotaPedidos {
 		
 		context.start(); // aqui o camel inicia o trabalho
 		
-		ProducerTemplate producer = context.createProducerTemplate();
-	    producer.sendBody("direct:soap", "<pedido> ... </pedido>");
+//		ProducerTemplate producer = context.createProducerTemplate();
+//	    producer.sendBody("direct:soap", "<pedido> ... </pedido>");
 		
 		Thread.sleep(3000); // espera um pouco para terminar a rota
 		context.stop();
